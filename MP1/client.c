@@ -22,16 +22,28 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+void messageCat(char* message, char* hostname, char* filename){
+	strcpy(message, "GET ");
+	strcat(message, filename);
+	strcat(message," HTTP/1.1\r\nHost: ");
+	strcat(message, hostname);
+	strcat(message,":");
+	strcat(message,PORT);
+	strcat(message,"\r\n\r\n");
+}
+
 int main(int argc, char const *argv[])
 {
 	char hostname[MAXDATASIZE];
 	char filename[MAXDATASIZE];
+	char message[MAXDATASIZE];
 	int i,j;
 	struct addrinfo hints, *servinfo,*p;
 	int rv;
 	int sockfd;
 	FILE *fp;
 	char buf[MAXDATASIZE];
+
 	if(argc != 2){
 		fprintf(stderr, "usage: client hostname\n");
 	}
@@ -44,7 +56,7 @@ int main(int argc, char const *argv[])
 
 	for(j = i+1; ;j++){
 		filename[j-i-1] = argv[1][j];
-		if(argv[1][j] == '\0')
+		if(argv[1][j+1] == '\0')
 			break;
 	}
 
@@ -79,10 +91,10 @@ int main(int argc, char const *argv[])
 	}
 
 	freeaddrinfo(servinfo);
-	if(send(sockfd, "GET /index.html HTTP/1.1\r\nHost: illinois.edu:80\r\n\r\n", 
-			strlen("GET /index.html HTTP/1.1\r\nHost: illinois.edu:80\r\n\r\n"),0) == -1){
-		perror("send");
-	}
+	messageCat(message, hostname, filename);
+	
+	if(send(sockfd, message, strlen(message),0)== -1) perror("send");
+
 	fp = fopen("output","ab");
 	while(recv(sockfd,buf, MAXDATASIZE-1,0) >0){
 		if(fp!=NULL){
