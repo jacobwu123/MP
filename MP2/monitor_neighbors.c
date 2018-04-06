@@ -9,6 +9,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <sys/time.h>
+
 
 extern int globalMyID;
 //last time you heard from each node. TODO: you will want to monitor this
@@ -79,13 +81,13 @@ void listenForNeighbors()
 		
 		//Is it a packet from the manager? (see mp2 specification for more details)
 		//send format: 'send'<4 ASCII bytes>, destID<net order 2 byte signed>, <some ASCII message>
-		if(!strncmp(recvBuf, "send", 4))
+		if(!strncmp((const char*)recvBuf, "send", 4))
 		{
 			//TODO send the requested message to the requested destination node
 			// ...
 		}
 		//'cost'<4 ASCII bytes>, destID<net order 2 byte signed> newCost<net order 4 byte signed>
-		else if(!strncmp(recvBuf, "cost", 4))
+		else if(!strncmp((const char*)recvBuf, "cost", 4))
 		{
 			//TODO record the cost change (remember, the link might currently be down! in that case,
 			//this is the new cost you should treat it as having once it comes back up.)
