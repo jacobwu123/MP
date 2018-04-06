@@ -1,0 +1,9 @@
+compilation of version 1 failed with:
+gcc -pthread -o vec_router main.c monitor_neighbors.c
+main.c:5:31: fatal error: monitor_neighbors.h: No such file or directory
+ #include "monitor_neighbors.h"
+                               ^
+compilation terminated.
+make: *** [vec] Error 1
+ 
+
