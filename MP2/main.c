@@ -10,9 +10,12 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <math.h>
+
 
 void listenForNeighbors();
 void* announceToNeighbors(void* unusedParam);
+int readAndParseInitialCostsFile(char* fileName, long int* costs);
 
 int globalMyID = 0;
 //last time you heard from each node. TODO: you will want to monitor this
@@ -23,6 +26,11 @@ struct timeval globalLastHeartbeat[256];
 int globalSocketUDP;
 //pre-filled for sending to 10.1.1.0 - 255, port 7777
 struct sockaddr_in globalNodeAddrs[256];
+
+long int nodesCosts[256];
+int neighbors[256];
+char filename[16];
+int nexthop[256];
 
 int main(int argc, char** argv)
 {
@@ -35,6 +43,8 @@ int main(int argc, char** argv)
 	//initialization: get this process's node ID, record what time it is, 
 	//and set up our sockaddr_in's for sending to the other nodes.
 	globalMyID = atoi(argv[1]);
+	strcpy(filename, argv[3]);
+	
 	int i;
 	for(i=0;i<256;i++)
 	{
@@ -49,7 +59,7 @@ int main(int argc, char** argv)
 	}
 	
 	//TODO: read and parse initial costs file. default to cost 1 if no entry for a node. file may be empty.
-	
+	readAndParseInitialCostsFile(argv[2], nodesCosts);
 	//socket() and bind() our socket. We will do all sendto()ing and recvfrom()ing on this one.
 	if((globalSocketUDP=socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
@@ -69,6 +79,7 @@ int main(int argc, char** argv)
 		close(globalSocketUDP);
 		exit(1);
 	}
+	
 	
 	//start threads... feel free to add your own, and to remove the provided ones.
 	pthread_t announcerThread;
