@@ -1,0 +1,18 @@
+test results:
+
+ sanity check: transfer single byte succeeded!
+ transfer 50K succeeded!
+ utilize empty link succeeded! sent in 10.0467269420624 seconds
+ drop rate=0.05 succeeded! sent 1MB in 1.11790800094604 seconds.
+ drop rate=0.25 succeeded! sent 1MB in 6.75028300285339 seconds
+ quick convergence succeeded!
+ TCP friendliness succeeded! (TCP got 32.0 Mbps)
+ TCP friendliness with 1% loss succeeded! (TCP got 15.2 Mbps)
+ competition vs TCP succeeded!
+ drop rate=0.25 succeeded!
+====================
+
+version:8
+score: 100/100
+
+

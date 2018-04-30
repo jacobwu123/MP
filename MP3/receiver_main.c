@@ -25,9 +25,13 @@ int handle_output_file(char* file)
 
 int print_to_file(unsigned long long int length, char* buf)
 {
-  int i;
-  fputc(buf[0],fd_log);
+  // int i;
+  // for(i = 0; i < length; i++)
+  // 	if(buf[i] != '\0')
+  // 	  fputc(buf[i],fd_log);
+  fwrite(buf, sizeof(char), length, fd_log);
   fflush(fd_log);
+
   return 0;
 }
 
@@ -43,17 +47,19 @@ void receiveSwp( char * buf, int length, SwpState * state,int socket, struct soc
 	struct recvQ_slot recv_pkt;
 	memcpy(&recv_pkt, buf, sizeof(struct recvQ_slot));
 	long long seq_num = recv_pkt.SeqNo;
-	printf("seqNO: %d\n", seq_num);
+	int packetSize = recv_pkt.packetSize;
+	printf("seqNO: %lld\n", seq_num);
 	// When the frame received is the next freame is expected for this swp
 	if(seq_num == state -> NFE)
 	{
-		print_to_file(MAXDATASIZE, recv_pkt.msg);
+		print_to_file(packetSize, recv_pkt.msg);
 
 		state -> NFE ++;
 		while(receive_window[state->NFE % RWS])
 		{
 			receive_window[state->NFE % RWS] = 0;
-			print_to_file(MAXDATASIZE, state->recvQ[state->NFE % RWS].msg);
+			packetSize = state->recvQ[state->NFE % RWS].packetSize;
+			print_to_file(packetSize, state->recvQ[state->NFE % RWS].msg);
 			state -> NFE ++;
 		}
 	}
@@ -61,10 +67,11 @@ void receiveSwp( char * buf, int length, SwpState * state,int socket, struct soc
 	// When the frame is within windows side, buffer it
 	else if(seq_num > state -> NFE && seq_num <= state -> NFE + RWS)
 	{
-		if(!receive_window[seq_num])
+		if(!receive_window[seq_num % RWS])
 		{
-			receive_window[seq_num] = 1;
-			memcpy(state-> recvQ[seq_num % RWS].msg, recv_pkt.msg, MAXDATASIZE);
+			receive_window[seq_num % RWS] = 1;
+			state-> recvQ[seq_num % RWS].packetSize = recv_pkt.packetSize;
+			memcpy(state-> recvQ[seq_num % RWS].msg, recv_pkt.msg, recv_pkt.packetSize);
 		}
 	}
 
@@ -73,9 +80,12 @@ void receiveSwp( char * buf, int length, SwpState * state,int socket, struct soc
 	char sendBuf[sizeof(struct recvQ_slot)];
 	ack_pkt.SeqNo = state -> NFE-1;
 	memcpy(sendBuf, &ack_pkt, sizeof(struct recvQ_slot));
-	printf("sent ack seqNO:%d\n", ack_pkt.SeqNo);
+	printf("sent ack seqNO:%lld\n", ack_pkt.SeqNo);
 	if(sendto(socket, sendBuf, sizeof(struct recvQ_slot), 0, (struct sockaddr*) send_address,sizeof(struct sockaddr))<0)
+	{
 		perror("send ACK error.");
+		exit(1);
+	}
 
 }
 
@@ -89,17 +99,18 @@ void reliablyReceive(unsigned short int myUDPport, char* destinationFile) {
 	SwpState curr_state;
 	curr_state.NFE=0;
 
+	struct timeval tv;
+
 
 	int receiverSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	if(receiverSocket < 0)
 	{
 		perror("socket()");
 		exit(1);
-	}
+	}	
 
 	char myAddr[100];
 	struct sockaddr_in bindAddr;
-	sprintf(myAddr, "127.0.0.1");
 	memset(&bindAddr, 0, sizeof(bindAddr));
 	bindAddr.sin_family = AF_INET;
 	bindAddr.sin_port = htons(myUDPport);
@@ -129,7 +140,20 @@ void reliablyReceive(unsigned short int myUDPport, char* destinationFile) {
 		
 		receiveSwp((char*)recvBuf, bytesRecvd, &curr_state, receiverSocket, &theirAddr);
 		memcpy(&recv_msg, recvBuf, sizeof(struct recvQ_slot));
-		printf("recv:%s\n", recv_msg.msg);
+		// printf("recv:%s\n", recv_msg.msg);
+		if(recv_msg.packetType == 1)
+		{
+			struct recvQ_slot fin_ack_pkt;
+			char sendBuf[sizeof(struct recvQ_slot)];
+			fin_ack_pkt.packetType = 1;
+			memcpy(sendBuf, &fin_ack_pkt, sizeof(struct recvQ_slot));
+			printf("send fin ack now\n");
+
+			if(sendto(receiverSocket, sendBuf, sizeof(struct recvQ_slot), 0, (struct sockaddr*) &theirAddr,sizeof(struct sockaddr))<0)
+				perror("send FIN ACK error.");
+
+			exit(1);
+		}
 	}
 	//(should never reach here)
 	close(receiverSocket);
